@@ -1,0 +1,16 @@
+@import 'tailwindcss';
+@plugin 'daisyui' {
+    themes: dark --default;
+}
+
+:root {
+    background: #171717;
+    color: white;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+body {
+    width: 960px;
+    margin: auto;
+}
+
