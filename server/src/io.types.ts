@@ -1,11 +1,11 @@
+import { CreateRoomPayload, CreateRoomCallbackResponse, RoomStateResponse } from './room.types';
+
 export interface ServerToClientEvents {
-    noArg: () => void;
-    basicEmit: (a: number, b: string, c: Buffer) => void;
-    withAck: (d: string, callback: (e: number) => void) => void;
+    'room:state': (a: RoomStateResponse) => void;
 }
 
 export interface ClientToServerEvents {
-    hello: () => void;
+    'room:create': (payload: CreateRoomPayload, callback?: (response: CreateRoomCallbackResponse) => void) => void;
 }
 
 export interface InterServerEvents {
