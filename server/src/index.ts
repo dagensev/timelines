@@ -26,7 +26,6 @@ const port = process.env.PORT ?? '3000';
 const rooms: Map<string, Room> = new Map<string, Room>();
 
 io.on('connection', (socket) => {
-    console.log('a user connected');
     roomHandler(io, socket, rooms);
 });
 

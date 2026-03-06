@@ -2,11 +2,23 @@ import { useEffect, useState } from 'react';
 import { socket } from './socket';
 import { CreateRoom } from './components/CreateRoom';
 import { Button } from './components/Button';
+import { useNavigate } from 'react-router';
+import { useLocalStorage } from './hooks/useLocalStorage';
+
+type RoomStateResponse = {
+    roomId: string;
+    hostSocketId: string;
+    players: { username: string }[];
+} | null;
 
 function App() {
     const [isConnected, setIsConnected] = useState(socket.connected);
     const [showCreateRoom, setShowCreateRoom] = useState<boolean>(false);
     const [showJoinRoom, setShowJoinRoom] = useState<boolean>(false);
+
+    const [, setRoomState] = useLocalStorage('roomState', {});
+
+    const navigate = useNavigate();
 
     const onClickCreateRoom = () => {
         setShowCreateRoom(true);
@@ -29,8 +41,14 @@ function App() {
             setIsConnected(false);
         }
 
+        const onRoomState = (e: RoomStateResponse) => {
+            setRoomState(e ?? {});
+            navigate(`/room/${e?.roomId}`);
+        };
+
         socket.on('connect', onConnect);
         socket.on('disconnect', onDisconnect);
+        socket.on('room:state', onRoomState);
 
         return () => {
             socket.off('connect', onConnect);
@@ -44,8 +62,8 @@ function App() {
             <div className='flex justify-center'>
                 {showButtons && (
                     <div className='flex gap-3 mt-28'>
-                        <Button text='Create Room' onClick={onClickCreateRoom} />
-                        <Button text='Join Room' onClick={onClickJoinRoom} />
+                        <Button onClick={onClickCreateRoom}>Create Room</Button>
+                        <Button onClick={onClickJoinRoom}>Join Room</Button>
                     </div>
                 )}
                 {showCreateRoom && <CreateRoom />}
