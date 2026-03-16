@@ -1,32 +1,94 @@
 import { randomBytes } from 'node:crypto';
 import type { Server, Socket } from 'socket.io';
 import type { ClientToServerEvents, InterServerEvents, ServerToClientEvents, SocketData } from '../io.types';
-import type { CreateRoomPayload, CreateRoomCallbackResponse, Room, JoinRoomPayload } from '../room.types';
+import type { CreateRoomPayload, CreateRoomCallbackResponse, Room, JoinRoomPayload, RoomActionPayload, RoomActionCallbackResponse } from '../room.types';
 
 const roomHandler = (
     io: Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>,
     socket: Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>,
     rooms: Map<string, Room>,
 ) => {
+    const syncRoomAfterPlayerChange = (roomId: string, room: Room) => {
+        if (room.players.length === 0) {
+            rooms.delete(roomId);
+            return;
+        }
+
+        room.hostSocketId = room.players.find((player) => player.playerId === room.hostPlayerId)?.socketId ?? '';
+
+        io.to(roomId).emit('room:state', getPublicRoomState(roomId, rooms));
+    };
+
+    const assignNextHost = (room: Room) => {
+        const nextHost = room.players[0];
+        if (!nextHost) return;
+
+        room.hostPlayerId = nextHost.playerId;
+        room.hostSocketId = nextHost.socketId;
+        room.hostUsername = nextHost.username;
+    };
+
+    const detachSocketFromRooms = (socketId: string) => {
+        for (const [roomId, room] of rooms.entries()) {
+            const player = room.players.find((entry) => entry.socketId === socketId);
+            if (!player) continue;
+
+            player.socketId = '';
+            if (player.playerId === room.hostPlayerId) {
+                room.hostSocketId = '';
+            }
+
+            io.to(roomId).emit('room:state', getPublicRoomState(roomId, rooms));
+        }
+    };
+
+    const removePlayerFromRooms = (socketId: string, options?: { excludeRoomId?: string; preserveHost?: boolean }) => {
+        for (const [roomId, room] of rooms.entries()) {
+            if (roomId === options?.excludeRoomId) continue;
+
+            const removedPlayer = room.players.find((player) => player.socketId === socketId);
+            if (!removedPlayer) continue;
+
+            room.players = room.players.filter((player) => player.socketId !== socketId);
+
+            if (removedPlayer.playerId === room.hostPlayerId && !options?.preserveHost && room.players.length > 0) {
+                assignNextHost(room);
+            }
+
+            syncRoomAfterPlayerChange(roomId, room);
+        }
+    };
+
     const createRoom = (payload: CreateRoomPayload, callback?: (response: CreateRoomCallbackResponse) => void) => {
         try {
+            const playerId = payload.playerId?.trim();
             const username = payload.username?.trim();
+            const password = payload.password?.trim();
+            if (!playerId) {
+                callback?.({ ok: false, error: 'Player ID is required' });
+                return;
+            }
             if (!username) {
                 callback?.({ ok: false, error: 'Username is required' });
                 return;
             }
 
-            // Leave all previous rooms
-            for (const room of socket.rooms) {
-                if (room !== socket.id) socket.leave(room);
+            removePlayerFromRooms(socket.id);
+
+            for (const joinedRoomId of socket.rooms) {
+                if (joinedRoomId !== socket.id) socket.leave(joinedRoomId);
             }
 
             const roomId: string = createUniqueRoomId(rooms);
 
             rooms.set(roomId, {
+                hostPlayerId: playerId,
                 hostSocketId: socket.id,
-                players: [{ socketId: socket.id, username }],
+                hostUsername: username,
+                password,
+                players: [{ playerId, socketId: socket.id, username }],
                 createdAt: Date.now(),
+                hasStarted: false,
             });
 
             socket.join(roomId);
@@ -42,10 +104,16 @@ const roomHandler = (
     const joinRoom = (payload: JoinRoomPayload, callback?: (response: CreateRoomCallbackResponse) => void) => {
         try {
             const roomId: string = payload.roomId?.trim().toUpperCase();
+            const playerId: string = payload.playerId?.trim();
             const username: string = payload.username?.trim();
+            const password: string = payload.password?.trim() ?? '';
 
             if (!roomId) {
                 callback?.({ ok: false, error: 'Room ID is required' });
+                return;
+            }
+            if (!playerId) {
+                callback?.({ ok: false, error: 'Player ID is required' });
                 return;
             }
             if (!username) {
@@ -60,33 +128,40 @@ const roomHandler = (
                 return;
             }
 
-            if (room.players.length >= 8) {
+            const existingPlayer = room.players.find((player) => player.playerId === playerId);
+
+            if (!existingPlayer && room.players.length >= 8) {
                 callback?.({ ok: false, error: 'Room is full' });
                 return;
             }
 
-            // Prevent same socket from joining twice
-            const alreadyInRoom = room.players.some((e) => e.socketId === socket.id);
-            if (!alreadyInRoom) {
-                // Prevent duplicate usernames
-                const usernameTaken = room.players.some((e) => e.username.toLowerCase() === username.toLowerCase());
+            if (!existingPlayer) {
+                if ((room.password ?? '') !== password) {
+                    callback?.({ ok: false, error: 'Incorrect room password' });
+                    return;
+                }
+
+                const usernameTaken = room.players.some((player) => player.username.toLowerCase() === username.toLowerCase() && player.playerId !== playerId);
                 if (usernameTaken) {
                     callback?.({ ok: false, error: 'Username is already taken in this room' });
                     return;
                 }
 
-                // Leave all previous rooms
-                for (const room of socket.rooms) {
-                    if (room !== socket.id) socket.leave(room);
+                removePlayerFromRooms(socket.id, { excludeRoomId: roomId });
+
+                for (const joinedRoomId of socket.rooms) {
+                    if (joinedRoomId !== socket.id && joinedRoomId !== roomId) socket.leave(joinedRoomId);
                 }
 
-                room.players.push({ socketId: socket.id, username });
+                room.players.push({ playerId, socketId: socket.id, username });
+            } else {
+                existingPlayer.socketId = socket.id;
+                existingPlayer.username = username;
             }
 
-            // Ensure hostSocketId is valid, otherwise assign to current player
-            const hostStillPresent = room.players.some((p) => p.socketId === room.hostSocketId);
-            if (!hostStillPresent) {
-                room.hostSocketId = room.players[0]?.socketId ?? socket.id;
+            if (room.hostPlayerId === playerId) {
+                room.hostSocketId = socket.id;
+                room.hostUsername = username;
             }
 
             socket.join(roomId);
@@ -99,8 +174,81 @@ const roomHandler = (
         }
     };
 
+    const leaveRoom = (payload: RoomActionPayload, callback?: (response: RoomActionCallbackResponse) => void) => {
+        try {
+            const roomId = payload.roomId?.trim().toUpperCase();
+            const playerId = payload.playerId?.trim();
+            if (!roomId) {
+                callback?.({ ok: false, error: 'Room ID is required' });
+                return;
+            }
+
+            const room = rooms.get(roomId);
+            if (!room) {
+                socket.leave(roomId);
+                callback?.({ ok: true });
+                return;
+            }
+
+            const leavingPlayer = room.players.find((player) => player.playerId === playerId || player.socketId === socket.id);
+            if (!leavingPlayer) {
+                socket.leave(roomId);
+                callback?.({ ok: true });
+                return;
+            }
+
+            room.players = room.players.filter((player) => player.playerId !== leavingPlayer.playerId);
+            if (leavingPlayer.playerId === room.hostPlayerId && room.players.length > 0) {
+                assignNextHost(room);
+            }
+            socket.leave(roomId);
+            syncRoomAfterPlayerChange(roomId, room);
+            callback?.({ ok: true });
+        } catch {
+            callback?.({ ok: false, error: 'Failed to leave room' });
+        }
+    };
+
+    const startRoom = (payload: RoomActionPayload, callback?: (response: RoomActionCallbackResponse) => void) => {
+        try {
+            const roomId = payload.roomId?.trim().toUpperCase();
+            if (!roomId) {
+                callback?.({ ok: false, error: 'Room ID is required' });
+                return;
+            }
+
+            const room = rooms.get(roomId);
+            if (!room) {
+                callback?.({ ok: false, error: 'Room not found' });
+                return;
+            }
+
+            const currentPlayer = room.players.find((player) => player.socketId === socket.id);
+            if (!currentPlayer || currentPlayer.playerId !== room.hostPlayerId) {
+                callback?.({ ok: false, error: 'Only the host can start the game' });
+                return;
+            }
+
+            if (room.players.length < 2) {
+                callback?.({ ok: false, error: 'At least 2 players are required to start the game' });
+                return;
+            }
+
+            room.hasStarted = true;
+            io.to(roomId).emit('room:state', getPublicRoomState(roomId, rooms));
+            callback?.({ ok: true });
+        } catch {
+            callback?.({ ok: false, error: 'Failed to start the game' });
+        }
+    };
+
     socket.on('room:create', createRoom);
     socket.on('room:join', joinRoom);
+    socket.on('room:leave', leaveRoom);
+    socket.on('room:start', startRoom);
+    socket.on('disconnect', () => {
+        detachSocketFromRooms(socket.id);
+    });
 };
 
 export default roomHandler;
@@ -121,7 +269,10 @@ const getPublicRoomState = (roomId: string, rooms: Map<string, Room>) => {
 
     return {
         roomId,
+        hostPlayerId: room.hostPlayerId,
         hostSocketId: room.hostSocketId,
+        hostUsername: room.hostUsername,
         players: room.players.map((e) => ({ username: e.username })),
+        hasStarted: room.hasStarted,
     };
 };

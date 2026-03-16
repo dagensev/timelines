@@ -15,7 +15,15 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents, InterServerEve
         ? {}
         : {
               cors: {
-                  origin: 'http://localhost:5173',
+                  origin: (origin, callback) => {
+                      if (!origin) {
+                          callback(null, true);
+                          return;
+                      }
+
+                      const isAllowedLocalOrigin = /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin);
+                      callback(isAllowedLocalOrigin ? null : new Error('Origin not allowed'), isAllowedLocalOrigin);
+                  },
               },
           },
 );

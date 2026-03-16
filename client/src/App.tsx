@@ -1,58 +1,53 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { socket } from './socket';
 import { CreateRoom } from './components/CreateRoom';
+import { JoinRoom } from './components/JoinRoom';
 import { Button } from './components/Button';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { useLocalStorage } from './hooks/useLocalStorage';
-
-type RoomStateResponse = {
-    roomId: string;
-    hostSocketId: string;
-    players: { username: string }[];
-} | null;
+import type { RoomStateResponse } from './room.types';
 
 function App() {
-    const [isConnected, setIsConnected] = useState(socket.connected);
-    const [showCreateRoom, setShowCreateRoom] = useState<boolean>(false);
-    const [showJoinRoom, setShowJoinRoom] = useState<boolean>(false);
+    const [searchParams, setSearchParams] = useSearchParams();
 
     const [, setRoomState] = useLocalStorage('roomState', {});
 
     const navigate = useNavigate();
+    const screen = searchParams.get('screen');
+    const roomCodeFromUrl = searchParams.get('join')?.trim().toUpperCase() ?? '';
+    const showCreateRoom = screen === 'create';
+    const showJoinRoom = screen === 'join' || Boolean(roomCodeFromUrl);
 
     const onClickCreateRoom = () => {
-        setShowCreateRoom(true);
-        setShowJoinRoom(false);
+        setSearchParams({ screen: 'create' });
     };
 
     const onClickJoinRoom = () => {
-        setShowJoinRoom(true);
-        setShowCreateRoom(false);
+        setSearchParams(roomCodeFromUrl ? { screen: 'join', join: roomCodeFromUrl } : { screen: 'join' });
+    };
+
+    const onClickBack = () => {
+        setSearchParams({});
     };
 
     const showButtons = !showCreateRoom && !showJoinRoom;
 
     useEffect(() => {
-        function onConnect() {
-            setIsConnected(true);
-        }
-
-        function onDisconnect() {
-            setIsConnected(false);
+        if (!socket.connected) {
+            socket.connect();
         }
 
         const onRoomState = (e: RoomStateResponse) => {
             setRoomState(e ?? {});
-            navigate(`/room/${e?.roomId}`);
+            if (e?.roomId) {
+                navigate(`/room/${e.roomId}`);
+            }
         };
 
-        socket.on('connect', onConnect);
-        socket.on('disconnect', onDisconnect);
         socket.on('room:state', onRoomState);
 
         return () => {
-            socket.off('connect', onConnect);
-            socket.off('disconnect', onDisconnect);
+            socket.off('room:state', onRoomState);
         };
     }, []);
 
@@ -66,7 +61,8 @@ function App() {
                         <Button onClick={onClickJoinRoom}>Join Room</Button>
                     </div>
                 )}
-                {showCreateRoom && <CreateRoom />}
+                {showCreateRoom && <CreateRoom onBack={onClickBack} />}
+                {showJoinRoom && <JoinRoom initialRoomCode={roomCodeFromUrl} onBack={onClickBack} />}
             </div>
         </div>
     );
