@@ -1,9 +1,13 @@
 import express from 'express';
 import { createServer } from 'node:http';
+import { resolve } from 'node:path';
 import { Server } from 'socket.io';
+import { initDb } from './db/index';
+import { getCardSets } from './db/cards';
 import { ClientToServerEvents, InterServerEvents, ServerToClientEvents, SocketData } from './io.types';
 import { Room } from './room.types';
 import roomHandler from './ioHandlers/room';
+import gameHandler from './ioHandlers/game';
 
 const environment = process.env.ENVIRONMENT;
 
@@ -35,7 +39,24 @@ const rooms: Map<string, Room> = new Map<string, Room>();
 
 io.on('connection', (socket) => {
     roomHandler(io, socket, rooms);
+    gameHandler(io, socket, rooms);
 });
+
+app.use(express.json());
+
+app.get('/api/card-sets', (_req, res) => {
+    res.json(getCardSets());
+});
+
+const staticPath = process.env.STATIC_PATH;
+if (staticPath) {
+    app.use(express.static(staticPath));
+    app.use((_req, res) => {
+        res.sendFile(resolve(staticPath, 'index.html'));
+    });
+}
+
+initDb();
 
 server.listen(port, () => {
     console.log(`listening on *:${port}`);

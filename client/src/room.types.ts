@@ -3,7 +3,7 @@ export type RoomStateResponse = {
     hostPlayerId: string;
     hostSocketId: string;
     hostUsername: string;
-    players: { username: string }[];
+    players: { username: string; playerId: string }[];
     hasStarted: boolean;
 } | null;
 

@@ -65,45 +65,43 @@ export const JoinRoom = ({ initialRoomCode = '', onBack }: Props) => {
     };
 
     return (
-        <div className='w-full mt-3'>
-            {error && <Alert type='error' text={error} />}
-            <div className='flex flex-col gap-5'>
+        <div className='w-full max-w-sm mx-auto mt-6'>
+            {error && <Alert type='error' text={error} className='mb-6' />}
+            <div className='flex flex-col gap-6'>
                 <Input
-                    label='Enter a room code'
-                    placeholder='Room Code'
+                    label='Room code'
+                    placeholder='Enter room code'
                     autoFocus
                     value={roomId}
                     onChange={(value) => {
                         setRoomId(value.toUpperCase());
                         setError('');
                     }}
-                    inputClassName='w-full uppercase'
+                    inputClassName='uppercase'
                 />
                 <Input
-                    label='Enter a username'
-                    placeholder='Username'
+                    label='Username'
+                    placeholder='Enter a username'
                     value={username}
                     onChange={(value) => {
                         setUsername(value);
                         setError('');
                     }}
-                    inputClassName='w-full'
                 />
                 <Input
-                    label='Enter room password (optional)'
-                    placeholder='Password'
+                    label='Room password (optional)'
+                    placeholder='Leave blank if none'
                     type='password'
                     value={password}
                     onChange={(value) => {
                         setPassword(value);
                         setError('');
                     }}
-                    inputClassName='w-full'
                 />
-                <Button disabled={!canJoinRoom} onClick={joinRoom}>
+                <Button className='btn-editorial-accent' disabled={!canJoinRoom} onClick={joinRoom}>
                     Join Room
                 </Button>
-                <Button className='btn-outline' onClick={onBack}>
+                <Button className='btn-editorial-ghost' onClick={onBack}>
                     Back
                 </Button>
             </div>

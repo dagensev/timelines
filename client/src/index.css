@@ -1,16 +1,272 @@
 @import 'tailwindcss';
-@plugin 'daisyui' {
-    themes: dark --default;
-}
 
+/* ─── Design Tokens ─────────────────────────────────────────────────── */
 :root {
-    background: #171717;
-    color: white;
-    font-family: Arial, Helvetica, sans-serif;
+    --bg:            #0f0f0f;
+    --surface:       #1a1a1a;
+    --surface-2:     #242424;
+    --border:        #2a2a2a;
+    --text:          #f0ede6;
+    --text-muted:    #888880;
+    --accent:        #e8d5a3;
+    --accent-bright: #f5c842;
+
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 
-body {
-    width: 960px;
-    margin: auto;
+h1, h2, h3, h4 {
+    font-family: 'Syne', sans-serif;
+    color: var(--text);
 }
 
+/* ─── Scrollbar ─────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ─── Hero Background (dot grid) ────────────────────────────────────── */
+.hero-bg {
+    position: relative;
+    overflow: hidden;
+    background: var(--bg);
+}
+.hero-bg::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(circle, var(--border) 1px, transparent 1px);
+    background-size: 32px 32px;
+    opacity: 0.5;
+    pointer-events: none;
+    animation: grid-drift 80s linear infinite;
+    z-index: 0;
+}
+.hero-bg > * {
+    position: relative;
+    z-index: 1;
+}
+@keyframes grid-drift {
+    0%   { background-position: 0 0; }
+    100% { background-position: 32px 32px; }
+}
+
+/* ─── Buttons ───────────────────────────────────────────────────────── */
+.btn-editorial {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 600;
+    font-size: 0.8125rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.625rem 1.5rem;
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 0;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    white-space: nowrap;
+}
+.btn-editorial:hover:not(:disabled) {
+    background: var(--accent);
+    color: var(--bg);
+    border-color: var(--accent);
+}
+.btn-editorial:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.btn-editorial-accent {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 600;
+    font-size: 0.8125rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.625rem 1.5rem;
+    background: var(--accent);
+    color: var(--bg);
+    border: 1px solid var(--accent);
+    border-radius: 0;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    white-space: nowrap;
+}
+.btn-editorial-accent:hover:not(:disabled) {
+    background: var(--accent-bright);
+    border-color: var(--accent-bright);
+}
+.btn-editorial-accent:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.btn-editorial-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 600;
+    font-size: 0.8125rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.625rem 1.5rem;
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid transparent;
+    border-radius: 0;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    white-space: nowrap;
+}
+.btn-editorial-ghost:hover:not(:disabled) {
+    background: var(--surface-2);
+    color: var(--text);
+    border-color: var(--border);
+}
+.btn-editorial-ghost:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+/* ─── Inputs ────────────────────────────────────────────────────────── */
+.input-editorial {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 0.9375rem;
+    padding: 0.5rem 0;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.15s;
+}
+.input-editorial:focus {
+    border-bottom-color: var(--accent);
+}
+.input-editorial::placeholder {
+    color: var(--text-muted);
+}
+
+.label-editorial {
+    display: block;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+}
+
+/* ─── Select ────────────────────────────────────────────────────────── */
+.select-editorial {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 0.9375rem;
+    padding: 0.5rem 0.75rem;
+    width: 100%;
+    outline: none;
+    appearance: none;
+    transition: border-color 0.15s;
+    border-radius: 0;
+}
+.select-editorial:focus {
+    border-color: var(--accent);
+}
+
+/* ─── Surface Panel ─────────────────────────────────────────────────── */
+.surface-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 1.25rem 1.5rem;
+}
+
+/* ─── Badges ────────────────────────────────────────────────────────── */
+.badge-editorial {
+    display: inline-flex;
+    align-items: center;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.2em 0.6em;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    background: transparent;
+    border-radius: 0;
+    white-space: nowrap;
+}
+
+.badge-editorial-accent {
+    display: inline-flex;
+    align-items: center;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.2em 0.6em;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    background: transparent;
+    border-radius: 0;
+    white-space: nowrap;
+}
+
+/* ─── Alerts ────────────────────────────────────────────────────────── */
+.alert-editorial-error {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    border-left: 3px solid #e05c5c;
+    background: rgba(224, 92, 92, 0.08);
+    color: var(--text);
+}
+.alert-editorial-success {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    border-left: 3px solid #6dbf7e;
+    background: rgba(109, 191, 126, 0.08);
+    color: var(--text);
+}
+.alert-editorial-info {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    border-left: 3px solid var(--accent);
+    background: rgba(232, 213, 163, 0.08);
+    color: var(--text);
+}
+.alert-editorial-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    border-left: 3px solid var(--accent-bright);
+    background: rgba(245, 200, 66, 0.08);
+    color: var(--text);
+}

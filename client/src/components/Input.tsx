@@ -14,9 +14,9 @@ export const Input: React.FC<Props> = ({ className = '', inputClassName = '', va
     };
 
     return (
-        <fieldset className={`fieldset ${className}`}>
-            {label && <legend className='fieldset-legend'>{label}</legend>}
-            <input type='text' className={`input ${inputClassName}`} value={value} onChange={onChangeInternal} {...props} />
-        </fieldset>
+        <div className={`flex flex-col ${className}`}>
+            {label && <label className='label-editorial'>{label}</label>}
+            <input type='text' className={`input-editorial ${inputClassName}`} value={value} onChange={onChangeInternal} {...props} />
+        </div>
     );
 };

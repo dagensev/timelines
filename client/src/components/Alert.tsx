@@ -4,10 +4,17 @@ interface Props {
     text: string;
 }
 
+const classMap = {
+    error:   'alert-editorial-error',
+    success: 'alert-editorial-success',
+    warning: 'alert-editorial-warning',
+    info:    'alert-editorial-info',
+};
+
 export const Alert: React.FC<Props> = ({ className = '', type, text }) => {
     return (
-        <div className={`alert alert-${type} ${className}`}>
-            <svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' className='h-6 w-6 shrink-0 stroke-current'>
+        <div className={`${classMap[type]} ${className}`}>
+            <svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' width='16' height='16' style={{ flexShrink: 0, color: 'var(--text-muted)' }} stroke='currentColor'>
                 {paths[type]}
             </svg>
             <span>{text}</span>

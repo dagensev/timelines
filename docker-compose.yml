@@ -1,0 +1,16 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - timelines-data:/data
+    environment:
+      ENVIRONMENT: production
+      DATABASE_PATH: /data/timelines.db
+      STATIC_PATH: /app/public
+      PORT: "3000"
+    restart: unless-stopped
+
+volumes:
+  timelines-data:

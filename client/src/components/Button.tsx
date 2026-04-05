@@ -6,7 +6,7 @@ interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 export const Button: React.FC<Props> = ({ children, className = '', onClick = () => {}, ...props }) => {
     return (
-        <button className={`btn btn-primary ${className}`} type='button' onClick={onClick} {...props}>
+        <button className={`btn-editorial ${className}`} type='button' onClick={onClick} {...props}>
             {children}
         </button>
     );

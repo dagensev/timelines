@@ -1,17 +1,24 @@
+import type { GameState } from './game.types';
+
 export interface Room {
     hostPlayerId: string;
     hostSocketId: string;
     hostUsername: string;
     password?: string;
+    cardSetId?: number;
     players: { playerId: string; socketId: string; username: string }[];
     createdAt: number;
     hasStarted: boolean;
+    gameState?: GameState;
+    disconnectTimers: Map<string, ReturnType<typeof setTimeout>>;
+    turnTimerHandle?: ReturnType<typeof setTimeout>;
 }
 
 export interface CreateRoomPayload {
     playerId: string;
     username: string;
     password?: string;
+    cardSetId?: number;
 }
 
 export interface JoinRoomPayload {
@@ -35,6 +42,6 @@ export type RoomStateResponse = {
     hostPlayerId: string;
     hostSocketId: string;
     hostUsername: string;
-    players: { username: string }[];
+    players: { username: string; playerId: string }[];
     hasStarted: boolean;
 } | null;

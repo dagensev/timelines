@@ -1,7 +1,9 @@
 import { randomBytes } from 'node:crypto';
 import type { Server, Socket } from 'socket.io';
 import type { ClientToServerEvents, InterServerEvents, ServerToClientEvents, SocketData } from '../io.types';
-import type { CreateRoomPayload, CreateRoomCallbackResponse, Room, JoinRoomPayload, RoomActionPayload, RoomActionCallbackResponse } from '../room.types';
+import type { CreateRoomPayload, CreateRoomCallbackResponse, Room, JoinRoomPayload, RoomActionPayload, RoomActionCallbackResponse, RoomStateResponse } from '../room.types';
+import { advanceGuesser, evictPlayer, getPublicGameState, initializeGame } from '../gameLogic';
+import { getCardCount } from '../db/cards';
 
 const roomHandler = (
     io: Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>,
@@ -10,6 +12,8 @@ const roomHandler = (
 ) => {
     const syncRoomAfterPlayerChange = (roomId: string, room: Room) => {
         if (room.players.length === 0) {
+            clearTimeout(room.turnTimerHandle);
+            for (const handle of room.disconnectTimers.values()) clearTimeout(handle);
             rooms.delete(roomId);
             return;
         }
@@ -38,7 +42,30 @@ const roomHandler = (
                 room.hostSocketId = '';
             }
 
-            io.to(roomId).emit('room:state', getPublicRoomState(roomId, rooms));
+            if (room.gameState && !room.gameState.winner) {
+                const timeline = room.gameState.timelines.find((t) => t.playerId === player.playerId);
+                if (timeline) {
+                    timeline.isConnected = false;
+                    timeline.disconnectedAt = Date.now();
+                }
+
+                // If it's this player's turn, advance immediately
+                if (room.gameState.turn?.currentGuesserId === player.playerId) {
+                    clearTimeout(room.turnTimerHandle);
+                    advanceGuesser(room, roomId, io);
+                } else {
+                    io.to(roomId).emit('game:state', getPublicGameState(room.gameState));
+                }
+
+                // Start 60s eviction timer
+                const handle = setTimeout(
+                    () => evictPlayer(roomId, player.playerId, room, io, () => syncRoomAfterPlayerChange(roomId, room)),
+                    60_000,
+                );
+                room.disconnectTimers.set(player.playerId, handle);
+            } else {
+                io.to(roomId).emit('room:state', getPublicRoomState(roomId, rooms));
+            }
         }
     };
 
@@ -64,6 +91,8 @@ const roomHandler = (
             const playerId = payload.playerId?.trim();
             const username = payload.username?.trim();
             const password = payload.password?.trim();
+            const cardSetId = payload.cardSetId;
+
             if (!playerId) {
                 callback?.({ ok: false, error: 'Player ID is required' });
                 return;
@@ -86,9 +115,11 @@ const roomHandler = (
                 hostSocketId: socket.id,
                 hostUsername: username,
                 password,
+                cardSetId,
                 players: [{ playerId, socketId: socket.id, username }],
                 createdAt: Date.now(),
                 hasStarted: false,
+                disconnectTimers: new Map(),
             });
 
             socket.join(roomId);
@@ -157,6 +188,24 @@ const roomHandler = (
             } else {
                 existingPlayer.socketId = socket.id;
                 existingPlayer.username = username;
+
+                // Reconnecting player — clear eviction timer and restore game connection
+                if (room.gameState && !room.gameState.winner) {
+                    const handle = room.disconnectTimers.get(playerId);
+                    if (handle !== undefined) {
+                        clearTimeout(handle);
+                        room.disconnectTimers.delete(playerId);
+                    }
+
+                    const timeline = room.gameState.timelines.find((t) => t.playerId === playerId);
+                    if (timeline) {
+                        timeline.isConnected = true;
+                        delete timeline.disconnectedAt;
+                    }
+
+                    // Send full game state directly to reconnecting socket
+                    socket.emit('game:state', getPublicGameState(room.gameState));
+                }
             }
 
             if (room.hostPlayerId === playerId) {
@@ -169,6 +218,11 @@ const roomHandler = (
             callback?.({ ok: true, roomId });
 
             io.to(roomId).emit('room:state', getPublicRoomState(roomId, rooms));
+
+            // Broadcast updated game state (connection status change) to all in room
+            if (room.gameState) {
+                io.to(roomId).emit('game:state', getPublicGameState(room.gameState));
+            }
         } catch {
             callback?.({ ok: false, error: 'Failed to join room' });
         }
@@ -195,6 +249,13 @@ const roomHandler = (
                 socket.leave(roomId);
                 callback?.({ ok: true });
                 return;
+            }
+
+            // Clear any pending eviction timer
+            const evictionHandle = room.disconnectTimers.get(leavingPlayer.playerId);
+            if (evictionHandle !== undefined) {
+                clearTimeout(evictionHandle);
+                room.disconnectTimers.delete(leavingPlayer.playerId);
             }
 
             room.players = room.players.filter((player) => player.playerId !== leavingPlayer.playerId);
@@ -234,9 +295,25 @@ const roomHandler = (
                 return;
             }
 
+            const cardCount = getCardCount(room.cardSetId);
+            if (cardCount < room.players.length) {
+                callback?.({ ok: false, error: `Not enough cards in this set (${cardCount} cards, need at least ${room.players.length})` });
+                return;
+            }
+
             room.hasStarted = true;
             io.to(roomId).emit('room:state', getPublicRoomState(roomId, rooms));
             callback?.({ ok: true });
+
+            try {
+                initializeGame(room, roomId, io);
+            } catch (err) {
+                console.error('Failed to initialize game:', err);
+                // Roll back started state so host can try again
+                room.hasStarted = false;
+                io.to(roomId).emit('room:state', getPublicRoomState(roomId, rooms));
+                socket.emit('game:error', { message: 'Failed to start game. Please try again.' });
+            }
         } catch {
             callback?.({ ok: false, error: 'Failed to start the game' });
         }
@@ -263,7 +340,7 @@ const createUniqueRoomId = (rooms: Map<string, Room>) => {
     return id;
 };
 
-const getPublicRoomState = (roomId: string, rooms: Map<string, Room>) => {
+const getPublicRoomState = (roomId: string, rooms: Map<string, Room>): RoomStateResponse => {
     const room = rooms.get(roomId);
     if (!room) return null;
 
@@ -272,7 +349,7 @@ const getPublicRoomState = (roomId: string, rooms: Map<string, Room>) => {
         hostPlayerId: room.hostPlayerId,
         hostSocketId: room.hostSocketId,
         hostUsername: room.hostUsername,
-        players: room.players.map((e) => ({ username: e.username })),
+        players: room.players.map((e) => ({ username: e.username, playerId: e.playerId })),
         hasStarted: room.hasStarted,
     };
 };

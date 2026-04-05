@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "WebSearch",
+      "WebFetch(domain:www.ultraboardgames.com)",
+      "WebFetch(domain:www.geekyhobbies.com)",
+      "WebFetch(domain:cdn6.bigcommerce.com)",
+      "Bash(npm run:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(node -e \"const p = require\\(''./package.json''\\); console.log\\(''framer-motion:'', p.dependencies[''framer-motion'']\\)\")"
+    ]
+  }
+}
