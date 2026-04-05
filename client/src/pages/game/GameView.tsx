@@ -124,9 +124,9 @@ export function GameView({ gameState, lastCardResult, roomState, myPlayerId }: P
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
-                        padding: '1.5rem 1.5rem 1.25rem',
-                        gap: '1rem',
-                        minHeight: '380px',
+                        padding: '0.75rem 1.5rem 0.75rem',
+                        gap: '0.5rem',
+                        minHeight: '0',
                         justifyContent: 'center',
                     }}>
                         <AnimatePresence mode='wait'>

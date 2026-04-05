@@ -25,7 +25,7 @@ export function MyTimeline({ cards, isMyTurn, isDragging, hoveredZone, lastCardR
             </div>
 
             <div className='overflow-x-auto pb-2'>
-                <div className='flex items-stretch gap-1 py-1' style={{ minWidth: 'max-content', minHeight: '560px' }}>
+                <div className='flex items-stretch gap-1 py-1' style={{ minWidth: 'max-content', minHeight: '336px' }}>
                     <AnimatePresence mode='popLayout'>
                         {cards.length === 0 ? (
                             <PlacementZone
@@ -56,6 +56,7 @@ export function MyTimeline({ cards, isMyTurn, isDragging, hoveredZone, lastCardR
                                             description={card.description}
                                             year={card.year}
                                             revealed={lastCardResult?.cardId === card.id && lastCardResult?.correct}
+                                            compact
                                         />
                                         <PlacementZone
                                             key={`zone-${idx + 1}`}

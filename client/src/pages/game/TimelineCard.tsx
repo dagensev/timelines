@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
+import { CardTooltip } from './CardTooltip';
 
 interface Props {
     title: string;
@@ -8,9 +9,10 @@ interface Props {
     revealed?: boolean; // triggers 3D flip from hidden → year reveal
     compact?: boolean;
     scale?: number; // override scale (default: compact ? 0.6 : 1)
+    suppressTooltip?: boolean;
 }
 
-export function TimelineCard({ title, description, year, revealed = false, compact = false, scale: scaleProp }: Props) {
+export function TimelineCard({ title, description, year, revealed = false, compact = false, scale: scaleProp, suppressTooltip = false }: Props) {
     const isHidden = year === undefined;
     const showYear = !isHidden;
 
@@ -26,15 +28,22 @@ export function TimelineCard({ title, description, year, revealed = false, compa
     const innerHeight   = height - outerPad - footerHeight;
 
     const brandSize    = Math.round(30 * s);
-    const brandGap     = Math.round(58 * s);
+    const brandGap     = Math.round(32 * s);
     const descSize     = Math.round(20 * s);
-    const yearSize     = Math.round(110 * s);
+    const yearSize     = Math.round(88 * s);
     const innerPadTop  = Math.round(70 * s);
     const innerPadSide = Math.round(24 * s);
+
+    // Max lines the description can show before the panel clips — used for ellipsis
+    const availableForDesc = innerHeight - innerPadTop - innerPadSide - brandSize - brandGap;
+    const maxDescLines = Math.max(1, Math.floor(availableForDesc / (descSize * 1.5)));
 
     // 3D flip animation when revealed transitions false → true
     const prevRevealedRef = useRef(false);
     const [isFlipping, setIsFlipping] = useState(false);
+
+    const rootRef = useRef<HTMLDivElement>(null);
+    const [isHovered, setIsHovered] = useState(false);
 
     useEffect(() => {
         if (revealed && !prevRevealedRef.current) {
@@ -46,7 +55,12 @@ export function TimelineCard({ title, description, year, revealed = false, compa
     }, [revealed]);
 
     return (
-        <div style={{ perspective: '1000px', flexShrink: 0 }}>
+        <div
+            ref={rootRef}
+            style={{ perspective: '1000px', flexShrink: 0 }}
+            onMouseEnter={() => { if (!suppressTooltip) setIsHovered(true); }}
+            onMouseLeave={() => setIsHovered(false)}
+        >
             <motion.div
                 layout
                 className='select-none flex flex-col'
@@ -115,9 +129,10 @@ export function TimelineCard({ title, description, year, revealed = false, compa
                             fontWeight: 400,
                             color: '#2a2420',
                             lineHeight: 1.5,
+                            textAlign: 'center',
                             overflow: 'hidden',
                             display: '-webkit-box',
-                            WebkitLineClamp: compact ? 4 : 5,
+                            WebkitLineClamp: maxDescLines,
                             WebkitBoxOrient: 'vertical',
                         }}
                     >
@@ -174,6 +189,17 @@ export function TimelineCard({ title, description, year, revealed = false, compa
                     </AnimatePresence>
                 </div>
             </motion.div>
+
+            <AnimatePresence>
+                {isHovered && !suppressTooltip && rootRef.current && (
+                    <CardTooltip
+                        anchorRect={rootRef.current.getBoundingClientRect()}
+                        title={title}
+                        description={description}
+                        year={year}
+                    />
+                )}
+            </AnimatePresence>
         </div>
     );
 }

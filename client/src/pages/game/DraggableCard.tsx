@@ -27,8 +27,8 @@ export function DraggableCard({ card, isMyTurn, onDragStart, onDrag, onDragEnd }
                     <motion.div
                         style={{
                             position: 'absolute',
-                            inset: '-6px',
-                            borderRadius: '36px',
+                            inset: '-10px',
+                            borderRadius: '27px',
                             border: '2px solid var(--accent)',
                             pointerEvents: 'none',
                             zIndex: 0,
@@ -88,7 +88,8 @@ export function DraggableCard({ card, isMyTurn, onDragStart, onDrag, onDragEnd }
                         title={card.title}
                         description={card.description}
                         year={undefined}
-                        scale={0.75}
+                        scale={0.55}
+                        suppressTooltip={dragging}
                     />
                 </motion.div>
             </div>

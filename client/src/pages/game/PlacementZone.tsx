@@ -29,7 +29,7 @@ export function PlacementZone({ position, isMyTurn, isDragging, isHovered, onReg
             ref={onRegister}
             className='flex-shrink-0 flex items-center justify-center cursor-pointer h-full'
             style={{
-                minHeight: '560px',
+                minHeight: '336px',
                 border,
                 background: bg,
                 boxShadow: shadow,

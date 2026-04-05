@@ -49,13 +49,7 @@ const roomHandler = (
                     timeline.disconnectedAt = Date.now();
                 }
 
-                // If it's this player's turn, advance immediately
-                if (room.gameState.turn?.currentGuesserId === player.playerId) {
-                    clearTimeout(room.turnTimerHandle);
-                    advanceGuesser(room, roomId, io);
-                } else {
-                    io.to(roomId).emit('game:state', getPublicGameState(room.gameState));
-                }
+                io.to(roomId).emit('game:state', getPublicGameState(room.gameState));
 
                 // Start 60s eviction timer
                 const handle = setTimeout(
