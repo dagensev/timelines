@@ -182,17 +182,21 @@ export default function Room() {
                         }}>
                             Timelines
                         </h1>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-                            <span style={{
-                                fontFamily: '"JetBrains Mono", "Courier New", monospace',
-                                fontWeight: 700,
-                                fontSize: '1.375rem',
-                                letterSpacing: '0.12em',
-                                color: 'var(--accent)',
-                            }}>
-                                {roomId}
-                            </span>
-                            <ClickToCopyButton displayValue={roomId ?? ''} value={roomId ?? ''} />
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <div style={{ position: 'relative', paddingRight: '1.25rem' }}>
+                                <span style={{
+                                    fontFamily: '"JetBrains Mono", "Courier New", monospace',
+                                    fontWeight: 700,
+                                    fontSize: '1.375rem',
+                                    letterSpacing: '0.12em',
+                                    color: 'var(--accent)',
+                                }}>
+                                    {roomId}
+                                </span>
+                                <div style={{ position: 'absolute', top: 0, right: 0 }}>
+                                    <ClickToCopyButton displayValue='' value={roomId ?? ''} />
+                                </div>
+                            </div>
                             {roomId && <CopyRoomUrlButton roomId={roomId} />}
                         </div>
                         <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>

@@ -8,6 +8,8 @@ import { DraggableCard } from './DraggableCard';
 import { MyTimeline } from './MyTimeline';
 import { OpponentsGrid } from './OpponentsGrid';
 import { PlayerSidebar } from './PlayerSidebar';
+import { ResultAnnouncement } from './ResultAnnouncement';
+import { RulesModal } from './RulesModal';
 import { WinnerScreen } from './WinnerScreen';
 
 interface Props {
@@ -22,6 +24,16 @@ export function GameView({ gameState, lastCardResult, roomState, myPlayerId }: P
 
     const myTimeline = timelines.find((t) => t.playerId === myPlayerId);
     const isMyTurn = turn?.currentGuesserId === myPlayerId;
+
+    // ── Rules modal state ──────────────────────────────────────────────
+    const [rulesOpen, setRulesOpen] = useState(() => {
+        return localStorage.getItem('timelines:rulesSeen') !== 'true';
+    });
+
+    const handleCloseRules = () => {
+        localStorage.setItem('timelines:rulesSeen', 'true');
+        setRulesOpen(false);
+    };
 
     // ── Drag-and-drop state ────────────────────────────────────────────
     const [isDragging, setIsDragging] = useState(false);
@@ -93,6 +105,7 @@ export function GameView({ gameState, lastCardResult, roomState, myPlayerId }: P
                 turn={turn}
                 myPlayerId={myPlayerId}
                 winner={winner}
+                lastCardResult={lastCardResult}
             />
 
             <div className='flex-1 flex flex-col min-w-0'>
@@ -117,6 +130,7 @@ export function GameView({ gameState, lastCardResult, roomState, myPlayerId }: P
                         timelines={timelines}
                         lastCardResult={lastCardResult}
                         activeCardId={activeCard?.id ?? null}
+                        onRulesClick={!winner ? () => setRulesOpen(true) : undefined}
                     />
 
                     {/* Card + instruction */}
@@ -202,6 +216,49 @@ export function GameView({ gameState, lastCardResult, roomState, myPlayerId }: P
                     isMe={winner === myPlayerId}
                 />
             )}
+
+            {/* ── Result feedback layers (flash + vignette + announcement) ── */}
+            {!winner && lastCardResult && (
+                <>
+                    {/* Vignette glow */}
+                    <motion.div
+                        key={`vignette-${lastCardResult.cardId}-${lastCardResult.guesserPlayerId}`}
+                        style={{
+                            position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 97,
+                            boxShadow: lastCardResult.correct
+                                ? 'inset 0 0 130px rgba(109,191,126,0.4)'
+                                : 'inset 0 0 130px rgba(224,92,92,0.4)',
+                        }}
+                        initial={{ opacity: 1 }}
+                        animate={{ opacity: 0 }}
+                        transition={{ duration: 0.75 }}
+                    />
+                    {/* Screen flash */}
+                    <motion.div
+                        key={`flash-${lastCardResult.cardId}-${lastCardResult.guesserPlayerId}`}
+                        style={{
+                            position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 98,
+                            background: lastCardResult.correct
+                                ? 'rgba(109,191,126,0.12)'
+                                : 'rgba(224,92,92,0.12)',
+                        }}
+                        initial={{ opacity: 1 }}
+                        animate={{ opacity: 0 }}
+                        transition={{ duration: 0.3 }}
+                    />
+                    {/* Result announcement — only for the guesser */}
+                    {lastCardResult.guesserPlayerId === myPlayerId && (
+                        <ResultAnnouncement
+                            key={`announce-${lastCardResult.cardId}-${lastCardResult.guesserPlayerId}`}
+                            result={lastCardResult}
+                        />
+                    )}
+                </>
+            )}
+
+            <AnimatePresence>
+                {rulesOpen && <RulesModal onClose={handleCloseRules} />}
+            </AnimatePresence>
         </div>
     );
 }
